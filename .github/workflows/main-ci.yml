@@ -1,0 +1,23 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: Run a Linux command
+      run: |
+        echo "Starting CI checks..."
+        # You would replace this with actual build/test commands
+        ls -a
+        echo "CI checks finished successfully."
