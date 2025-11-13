@@ -1,0 +1,90 @@
+name: Complex Ubuntu CI Pipeline
+
+on:
+  push:
+    branches: [ main, duty ]
+  pull_request:
+    branches: [ main, duty ]
+
+jobs:
+  test:
+    name: Test on Ubuntu with matrix builds
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.9, 3.10, 3.11]
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Setup Python versions
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # Step 3: Cache pip dependencies
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # Step 4: Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Step 5: Linting
+      - name: Run flake8 linting
+        run: |
+          flake8 app --max-line-length=100 --exclude=__init__.py
+
+      # Step 6: Run tests with coverage
+      - name: Run pytest with coverage
+        run: |
+          coverage run -m pytest
+          coverage report
+          coverage xml
+
+      # Step 7: Upload coverage report
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.python-version }}
+          path: coverage.xml
+
+  build:
+    name: Build validation
+    runs-on: ubuntu-latest
+    needs: test  # only run after tests pass
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build tools
+        run: |
+          pip install build
+
+      - name: Build package
+        run: |
+          python -m build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-package
+          path: dist/*.tar.gz
